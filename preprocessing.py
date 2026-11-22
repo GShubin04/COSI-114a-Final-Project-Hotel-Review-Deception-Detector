@@ -31,7 +31,7 @@ data['length'] = lengths
 print(data.groupby('deceptive')['length'].describe())
 
 #Normalize length to 364
-with tok.select_pipes(disable = ["tok2vec", "tagger", "parser", "attribute_ruler", "lemmatizer", "ner"]):
+with tok.select_pipes(disable = ["tok2vec", "attribute_ruler", "lemmatizer", "ner"]):
     docs = list(tok.pipe(data['text'], batch_size=64))
 
 #Input the list of tokens back into the df
@@ -43,9 +43,8 @@ truthful_positive = data[0:400]
 truthful_negative = data[800:1200]
 
 deceptive_positive = data[400:800]
-deceptive_negative = data[1200:1600]
-print(deceptive_positive.head())
-
+deceptive_negative = data[1200:1600] 
+  
 #Output preprocessed to a csv
 data.to_csv("data/preprocessed-reviews.csv", index=False)
 
