@@ -5,6 +5,8 @@ import sklearn
 from sklearn.feature_extraction import DictVectorizer
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+import matplotlib.pyplot as plt
 
 data = pd.read_csv('data/preprocessed-reviews.csv')
 tok = spacy.load("en_core_web_sm", disable = ["parser", "ner"])
@@ -31,9 +33,11 @@ intensifiers = {"very", "really", "extremely", "absolutely", "completely", "tota
 
 
 
-def extract_features(data, batch_size = 64):
+def extract_features(review, data = data, batch_size = 64):
     rows = []
-    for doc in tok.pipe(data, batch_size = 64):
+    i = 0
+    for doc in tok.pipe(review, batch_size = 64):
+        polarity = data["polarity"][i]
         tokens = [t for t in doc if not t.is_space]
         words = [t for t in doc if t.is_alpha]
 
@@ -81,29 +85,40 @@ def extract_features(data, batch_size = 64):
             "all_caps_rate" : sum(t.is_upper and len(t.text) > 1 for t in tokens) / n_tokens,
             "exclamation_rate" : sum(t.text == "!" for t in tokens) / n_sents,
             "question_rate" : sum(t.text == "?" for t in tokens) / n_sents,
-            "avg_sent_len" : n_tokens / n_sents
+            "avg_sent_len" : n_tokens / n_sents,
+            "polarity" : 1 if polarity == "positive" else -1,
             #If features seem like they aren't fitting, maybe I'll add the rate at which they mention the Hotel's name
         }
+        i += 1
         rows.append(features)
     return rows
 
 #Splits
-feature_dicts = extract_features(data)
+feature_dicts = extract_features(data['text'])
 y = (data["deceptive"] == "deceptive").astype(int) #gold labels
 
 strat_key = data["deceptive"] + "_" + data["polarity"]
 
 #split into train, dev, and test (random state is my lucky number 22)
-train_dev_split, test_dicts, y_train_dev, y_test, strat_train_dev = train_test_split(
+train_dev_split, test_dicts, y_train_dev, y_test, strat_train_dev, _ = train_test_split(
     feature_dicts, y, strat_key, test_size=.15, random_state= 22, stratify= strat_key) 
 train_dicts, dev_dicts, y_train, y_dev = train_test_split(
     train_dev_split, y_train_dev, test_size= .15/.85, random_state=22, stratify= strat_train_dev)  
 
 #Vectorize and fit the train, test, dev
-vect = DictVectorizer
+vect = DictVectorizer()
 train = vect.fit_transform(train_dicts)
-dev = vect.fit(dev_dicts)
+dev = vect.transform(dev_dicts)
 test = vect.transform(test_dicts)
 
+rf = RandomForestClassifier(n_estimators= 300, random_state = 22)
+rf.fit(train, y_train)
+dev_yhat = rf.predict(dev)
 
+conf_matrix = confusion_matrix(y_dev, dev_yhat)
+print(conf_matrix)
+
+rf_a = ConfusionMatrixDisplay(confusion_matrix=conf_matrix, display_labels=["Deceptive", "Truthful"])
+rf_a.plot(cmap=plt.cm.BuPu)
+plt.show()
 
