@@ -4,6 +4,7 @@ import spacy
 import sklearn
 from sklearn.feature_extraction import DictVectorizer
 from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
 
 data = pd.read_csv('data/preprocessed-reviews.csv')
 tok = spacy.load("en_core_web_sm", disable = ["parser", "ner"])
@@ -93,12 +94,16 @@ y = (data["deceptive"] == "deceptive").astype(int) #gold labels
 strat_key = data["deceptive"] + "_" + data["polarity"]
 
 #split into train, dev, and test (random state is my lucky number 22)
-train_dev_split, test, y_train_dev, y_test, strat_train_def = train_test_split(
+train_dev_split, test_dicts, y_train_dev, y_test, strat_train_dev = train_test_split(
     feature_dicts, y, strat_key, test_size=.15, random_state= 22, stratify= strat_key) 
-train_dicts, val_dicts, y_train, y_val = train_test_split(splits, train_size = .82353, test_size = .17647, random_state= 22)  
+train_dicts, dev_dicts, y_train, y_dev = train_test_split(
+    train_dev_split, y_train_dev, test_size= .15/.85, random_state=22, stratify= strat_train_dev)  
 
-vectorizer = DictVectorizer
+#Vectorize and fit the train, test, dev
+vect = DictVectorizer
+train = vect.fit_transform(train_dicts)
+dev = vect.fit(dev_dicts)
+test = vect.transform(test_dicts)
 
-train_features = DictVectorizer(extract_features(train))
-dev_features = DictVectorizer(extract_features(dev))
-test_features = DictVectorizer(extract_features(test))
+
+
