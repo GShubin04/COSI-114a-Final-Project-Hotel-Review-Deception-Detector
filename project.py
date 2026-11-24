@@ -173,7 +173,7 @@ def grid_search(feature_dicts, y, strat_key):
                 print(f"accuracy = {rf.score(dev, y_dev)}")
                 print("-" * 15)
 
-#grid_search(feature_dicts, y, strat_key)
+grid_search(feature_dicts, y, strat_key)
 
 #Test case on baseline model (performed the best overall)
 rf_test = RandomForestClassifier(random_state = 22)
