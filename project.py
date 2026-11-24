@@ -5,8 +5,10 @@ import sklearn
 from sklearn.feature_extraction import DictVectorizer
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.dummy import DummyClassifier
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 import matplotlib.pyplot as plt
+from sklearn.metrics import classification_report
 
 data = pd.read_csv('data/preprocessed-reviews.csv')
 tok = spacy.load("en_core_web_sm", disable = ["parser", "ner"])
@@ -97,6 +99,7 @@ def extract_features(review, data = data, batch_size = 64):
 feature_dicts = extract_features(data['text'])
 y = (data["deceptive"] == "deceptive").astype(int) #gold labels
 
+#Strat key ensures normal distribtion of samples
 strat_key = data["deceptive"] + "_" + data["polarity"]
 
 #split into train, dev, and test (random state is my lucky number 22)
@@ -112,17 +115,32 @@ dev = vect.transform(dev_dicts)
 test = vect.transform(test_dicts)
 
 #Train Baseline
-rf = RandomForestClassifier(n_estimators= 300, random_state = 22)
+rf = RandomForestClassifier(random_state = 22)
 rf.fit(train, y_train)
 dev_yhat = rf.predict(dev)
 
+#basline confusion matrix
 conf_matrix = confusion_matrix(y_dev, dev_yhat)
+print(f'Baseline model: n_estimators = 100, max_depth = None')
 print(conf_matrix)
+print(f'Accuracy = {rf.score(dev, y_dev)}')
 
-rf_a = ConfusionMatrixDisplay(confusion_matrix=conf_matrix, display_labels=["Deceptive", "Truthful"])
-rf_a.plot(cmap=plt.cm.BuPu)
+rf_cm = ConfusionMatrixDisplay(confusion_matrix=conf_matrix, display_labels=["Deceptive", "Truthful"])
+rf_cm.plot(cmap=plt.cm.BuPu)
 plt.show()
 
+#dummy baseline
+d = DummyClassifier(strategy= "stratified", random_state= 22)
+d.fit(train, y_train)
+d_yhat = d.predict(dev)
+
+#basline confusion matrix
+dummy_conf_matrix = confusion_matrix(y_dev, d_yhat)
+print(f'Dummy Model')
+print(dummy_conf_matrix)
+print(f'Accuracy = {d.score(dev, y_dev)}')
+
+#Grid Search for n_estimators and max_depth. The values in here might change as I keep experimenting
 def grid_search(feature_dicts, y, strat_key):
     n_estimators = [100, 200, 300]
     max_depth = [5, 10, None]
@@ -155,4 +173,23 @@ def grid_search(feature_dicts, y, strat_key):
                 print(f"accuracy = {rf.score(dev, y_dev)}")
                 print("-" * 15)
 
-grid_search(feature_dicts, y, strat_key)
+#grid_search(feature_dicts, y, strat_key)
+
+#Test case on baseline model (performed the best overall)
+rf_test = RandomForestClassifier(random_state = 22)
+rf_test.fit(train, y_train)
+test_yhat = rf.predict(test)
+
+#Test-set confusion matrix
+conf_matrix_test = confusion_matrix(y_test, test_yhat)
+print(f'Test: n_estimators = 100, max_depth = None')
+print(conf_matrix_test)
+
+print("Full Report:")
+print(classification_report(y_test, test_yhat))
+
+#Display Confusion matrix
+rf_cm_test = ConfusionMatrixDisplay(confusion_matrix=conf_matrix_test, display_labels=["Deceptive", "Truthful"])
+rf_cm_test.plot(cmap=plt.cm.BuPu)
+plt.title("Test Set Confusion Matrix: n_estimators = 100, max_depth = None")
+plt.show()
