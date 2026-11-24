@@ -111,6 +111,7 @@ train = vect.fit_transform(train_dicts)
 dev = vect.transform(dev_dicts)
 test = vect.transform(test_dicts)
 
+#Train Baseline
 rf = RandomForestClassifier(n_estimators= 300, random_state = 22)
 rf.fit(train, y_train)
 dev_yhat = rf.predict(dev)
@@ -122,3 +123,36 @@ rf_a = ConfusionMatrixDisplay(confusion_matrix=conf_matrix, display_labels=["Dec
 rf_a.plot(cmap=plt.cm.BuPu)
 plt.show()
 
+def grid_search(feature_dicts, y, strat_key):
+    n_estimators = [100, 200, 300]
+    max_depth = [5, 10, None]
+
+    for i in range(5):
+        train_dev_split, test_dicts, y_train_dev, y_test, strat_train_dev, _ = train_test_split(
+        feature_dicts, y, strat_key, test_size=.15, random_state= 22 + i, stratify= strat_key) 
+        train_dicts, dev_dicts, y_train, y_dev = train_test_split(
+            train_dev_split, y_train_dev, test_size= .15/.85, random_state=22 + i, stratify= strat_train_dev)  
+
+        #Vectorize and fit the train, test, dev
+        vect = DictVectorizer()
+        train = vect.fit_transform(train_dicts)
+        dev = vect.transform(dev_dicts)
+        test = vect.transform(test_dicts)
+        print(f'ITERATION {i + 1}')
+        for n in n_estimators:
+            for m in max_depth:
+                #rf
+                rf = RandomForestClassifier(n_estimators= n, max_depth = m, random_state = 22 + i)
+                rf.fit(train, y_train)
+                dev_yhat = rf.predict(dev)
+
+
+
+                conf_matrix = confusion_matrix(y_dev, dev_yhat)
+                print("-" * 15)
+                print(f'The Confusion matrix for n_estimators = {n} and max_depth = {m}')
+                print(conf_matrix)
+                print(f"accuracy = {rf.score(dev, y_dev)}")
+                print("-" * 15)
+
+grid_search(feature_dicts, y, strat_key)
